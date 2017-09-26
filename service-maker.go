@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+// Free to add something useful here like logging or metrics.
+var (
+	EnterActionHook func(action, name string) = func(action, name string) { return }
+	ExitActionHook  func(action, name string) = func(action, name string) { return }
+)
+
+var WaitForService time.Duration = 10 * time.Microsecond
+
 var serviceProviders providers
 
 type providers struct {
@@ -15,12 +23,6 @@ type providers struct {
 func init() {
 	serviceProviders.m = make(map[string]*service)
 }
-
-// Free to add something useful here like logging or metrics.
-var (
-	EnterActionHook func(action, name string) = func(action, name string) { return }
-	ExitActionHook  func(action, name string) = func(action, name string) { return }
-)
 
 // Provide signals what something became as a service.
 func Provide(name string) *service {
@@ -60,7 +62,7 @@ func Get(name string) interface{} {
 			}
 			p.RUnlock()
 		}
-		time.Sleep(10 * time.Millisecond) // XXX alternative with channels
+		time.Sleep(WaitForService) // XXX alternative with channels
 	}
 }
 
@@ -152,7 +154,7 @@ func (c *service) WaitFor(name string) interface{} {
 			}
 			p.RUnlock()
 		}
-		time.Sleep(10 * time.Millisecond) // XXX alternative with channels
+		time.Sleep(WaitForService) // XXX alternative with channels
 	}
 }
 
