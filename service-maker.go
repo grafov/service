@@ -16,8 +16,15 @@ func init() {
 	serviceProviders.m = make(map[string]*service)
 }
 
+// Free to add something useful here like logging or metrics.
+var (
+	EnterActionHook func(action, name string) = func(action, name string) { return }
+	ExitActionHook  func(action, name string) = func(action, name string) { return }
+)
+
 // Provide signals what something became as a service.
 func Provide(name string) *service {
+	EnterActionHook("register", name)
 	serviceProviders.Lock()
 	c, ok := serviceProviders.m[name]
 	if !ok {
@@ -28,6 +35,7 @@ func Provide(name string) *service {
 		serviceProviders.m[name] = c
 	}
 	serviceProviders.Unlock()
+	ExitActionHook("register", name)
 	return c
 }
 
@@ -37,6 +45,7 @@ func Get(name string) interface{} {
 		p  *service
 		ok bool
 	)
+	EnterActionHook("get", name)
 	for {
 		serviceProviders.RLock()
 		p, ok = serviceProviders.m[name]
@@ -46,6 +55,7 @@ func Get(name string) interface{} {
 			if p.IsReady {
 				s := p.Instance
 				p.RUnlock()
+				ExitActionHook("get", name)
 				return s
 			}
 			p.RUnlock()
@@ -82,6 +92,7 @@ func Fail(name string) {
 	c, ok := serviceProviders.m[name]
 	serviceProviders.RUnlock()
 	if ok {
+		EnterActionHook("failed", name)
 		c.Lock()
 		if !c.IsReady {
 			c.Unlock()
@@ -100,6 +111,7 @@ func Fail(name string) {
 		}
 		c.NeedRestart <- struct{}{}
 		c.RUnlock()
+		ExitActionHook("failed", name)
 	}
 }
 
@@ -119,6 +131,7 @@ func (c *service) WaitFor(name string) interface{} {
 		p       *service
 		ok, set bool
 	)
+	EnterActionHook("wait", name)
 	for {
 		serviceProviders.RLock()
 		p, ok = serviceProviders.m[name]
@@ -134,6 +147,7 @@ func (c *service) WaitFor(name string) interface{} {
 			if p.IsReady {
 				s := p.Instance
 				p.RUnlock()
+				ExitActionHook("wait", name)
 				return s
 			}
 			p.RUnlock()
@@ -145,10 +159,12 @@ func (c *service) WaitFor(name string) interface{} {
 // Ready puts the service instance into service structure and says the
 // service is ready to serve.
 func (c *service) Ready(service interface{}) {
+	EnterActionHook("ready", c.Name)
 	c.Lock()
 	c.Instance = service
 	c.IsReady = true
 	c.Unlock()
+	ExitActionHook("ready", c.Name)
 }
 
 // Failed notify the service that it is failed and should be
