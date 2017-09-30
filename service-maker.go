@@ -94,12 +94,12 @@ func Fail(name string) {
 	c, ok := serviceProviders.m[name]
 	serviceProviders.RUnlock()
 	if ok {
-		EnterActionHook("failed", name)
 		c.Lock()
 		if !c.IsReady {
 			c.Unlock()
 			return
 		}
+		EnterActionHook("failed", name)
 		c.IsReady = false
 		c.Unlock()
 		c.RLock()
