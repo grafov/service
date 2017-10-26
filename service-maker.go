@@ -42,6 +42,8 @@ func Provide(name string) *service {
 	return c
 }
 
+// Get returns the instance of the service. This method allows pass
+// context for cancellation in a time.
 func GetCancelable(ctx context.Context, name string) interface{} {
 	var (
 		p  *service
