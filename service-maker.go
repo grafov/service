@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -41,29 +42,38 @@ func Provide(name string) *service {
 	return c
 }
 
-// Get returns the instance of the service.
-func Get(name string) interface{} {
+func GetCancelable(ctx context.Context, name string) interface{} {
 	var (
 		p  *service
 		ok bool
 	)
 	EnterActionHook("get", name)
 	for {
-		serviceProviders.RLock()
-		p, ok = serviceProviders.m[name]
-		serviceProviders.RUnlock()
-		if ok {
-			p.RLock()
-			if p.IsReady {
-				s := p.Instance
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			serviceProviders.RLock()
+			p, ok = serviceProviders.m[name]
+			serviceProviders.RUnlock()
+			if ok {
+				p.RLock()
+				if p.IsReady {
+					s := p.Instance
+					p.RUnlock()
+					ExitActionHook("get", name)
+					return s
+				}
 				p.RUnlock()
-				ExitActionHook("get", name)
-				return s
 			}
-			p.RUnlock()
+			time.Sleep(WaitForService) // XXX alternative with channels
 		}
-		time.Sleep(WaitForService) // XXX alternative with channels
 	}
+}
+
+// Get returns the instance of the service.
+func Get(name string) interface{} {
+	return GetCancelable(context.Background(), name)
 }
 
 // List returns a list of currently ready to use services.
