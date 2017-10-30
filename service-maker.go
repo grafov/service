@@ -40,9 +40,9 @@ func Provide(name string) *service {
 	c, ok := serviceProviders.m[name]
 	if !ok {
 		c = &service{
-			Name:          name,
-			NeedRestart:   make(chan struct{}, 1),
-			Dependendents: make(map[string]bool)}
+			Name:        name,
+			NeedRestart: make(chan struct{}, 1),
+			Dependents:  make(map[string]bool)}
 		serviceProviders.m[name] = c
 	}
 	serviceProviders.Unlock()
@@ -95,7 +95,7 @@ func List() map[string][]string {
 	for name, service := range serviceProviders.m {
 		if service.IsReady {
 			deps := []string{}
-			for name := range service.Dependendents {
+			for name := range service.Dependents {
 				deps = append(deps, name)
 			}
 			list[name] = deps
@@ -123,7 +123,7 @@ func Fail(name string) {
 		c.IsReady = false
 		c.Unlock()
 		c.RLock()
-		for key := range c.Dependendents {
+		for key := range c.Dependents {
 			if name == key {
 				continue // cyclic dependency detected
 			}
@@ -142,9 +142,9 @@ type service struct {
 	NeedRestart chan struct{}
 
 	sync.RWMutex
-	IsReady       bool
-	Instance      interface{}
-	Dependendents map[string]bool // XXX сюда лучше каналы на рестарт сервисов
+	IsReady    bool
+	Instance   interface{}
+	Dependents map[string]bool // XXX сюда лучше каналы на рестарт сервисов
 }
 
 // WaitFor waits for a service and returns it instance.
@@ -161,7 +161,7 @@ func (c *service) WaitFor(name string) interface{} {
 		if ok {
 			if !set {
 				p.Lock()
-				p.Dependendents[c.Name] = true
+				p.Dependents[c.Name] = true
 				set = true
 				p.Unlock()
 			}
