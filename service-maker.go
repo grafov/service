@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+const (
+	RegisterState = "register"
+	GetState      = "get"
+	FailedState   = "failed"
+	WaitState     = "wait"
+	ReadyState    = "ready"
+)
+
 // Free to add something useful here like logging or metrics.
 var (
 	EnterActionHook func(action, name string) = func(action, name string) { return }
@@ -27,7 +35,7 @@ func init() {
 
 // Provide signals what something became as a service.
 func Provide(name string) *service {
-	EnterActionHook("register", name)
+	EnterActionHook(RegisterState, name)
 	serviceProviders.Lock()
 	c, ok := serviceProviders.m[name]
 	if !ok {
@@ -38,7 +46,7 @@ func Provide(name string) *service {
 		serviceProviders.m[name] = c
 	}
 	serviceProviders.Unlock()
-	ExitActionHook("register", name)
+	ExitActionHook(RegisterState, name)
 	return c
 }
 
@@ -49,7 +57,7 @@ func GetCancelable(ctx context.Context, name string) interface{} {
 		p  *service
 		ok bool
 	)
-	EnterActionHook("get", name)
+	EnterActionHook(GetState, name)
 	for {
 		select {
 		case <-ctx.Done():
@@ -63,7 +71,7 @@ func GetCancelable(ctx context.Context, name string) interface{} {
 				if p.IsReady {
 					s := p.Instance
 					p.RUnlock()
-					ExitActionHook("get", name)
+					ExitActionHook(GetState, name)
 					return s
 				}
 				p.RUnlock()
@@ -111,7 +119,7 @@ func Fail(name string) {
 			c.Unlock()
 			return
 		}
-		EnterActionHook("failed", name)
+		EnterActionHook(FailedState, name)
 		c.IsReady = false
 		c.Unlock()
 		c.RLock()
@@ -125,7 +133,7 @@ func Fail(name string) {
 		}
 		c.NeedRestart <- struct{}{}
 		c.RUnlock()
-		ExitActionHook("failed", name)
+		ExitActionHook(FailedState, name)
 	}
 }
 
@@ -145,7 +153,7 @@ func (c *service) WaitFor(name string) interface{} {
 		p       *service
 		ok, set bool
 	)
-	EnterActionHook("wait", name)
+	EnterActionHook(WaitState, name)
 	for {
 		serviceProviders.RLock()
 		p, ok = serviceProviders.m[name]
@@ -161,7 +169,7 @@ func (c *service) WaitFor(name string) interface{} {
 			if p.IsReady {
 				s := p.Instance
 				p.RUnlock()
-				ExitActionHook("wait", name)
+				ExitActionHook(WaitState, name)
 				return s
 			}
 			p.RUnlock()
@@ -173,12 +181,12 @@ func (c *service) WaitFor(name string) interface{} {
 // Ready puts the service instance into service structure and says the
 // service is ready to serve.
 func (c *service) Ready(service interface{}) {
-	EnterActionHook("ready", c.Name)
+	EnterActionHook(ReadyState, c.Name)
 	c.Lock()
 	c.Instance = service
 	c.IsReady = true
 	c.Unlock()
-	ExitActionHook("ready", c.Name)
+	ExitActionHook(ReadyState, c.Name)
 }
 
 // Failed notify the service that it is failed and should be
