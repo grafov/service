@@ -4,15 +4,27 @@ _The package helps you separate constant running parts of code as
 "services" where one "service" could be dependent of others._
 
 You could run parts of logic inside your application as independent
-"services", inside goroutines for example. These services could be
-dependable each of another. The package helps track their dependencies
-and restart them by chain. It is simplier explain in an example.
+"services", inside goroutines for example. "Services" in this context
+are parts of the code inside application that could be dependable each
+of another. The package helps track their dependencies and restart
+them by chain.
 
-Database client reads configuration from etcd (or another kind of
-remote storage) and initializes the client instance.  When remote
-configuration changed (for example another database node added) you
-should reread it and reinitialize client. With `service` you could run
-it like this (it is pseudocode where only `service` calls are real):
+## Features
+
+The package does:
+
+ * Provides registry for declaring parts of code as "services"
+ * Allow setup which other services depends on a declared service
+ * Notifies other services when the service they depended failed for some reason
+
+## How it works
+
+It is simplier explain in an example. Database client reads
+configuration from etcd (or another kind of remote storage) and
+initializes the client instance.  When remote configuration changed
+(for example another database node added) you should reread it and
+reinitialize client. With `service` you could run it like this (it is
+pseudocode where only `service` calls are real):
 
 ```go
 
